@@ -42,7 +42,7 @@ def plot_region(start,end,tracks,annotation=[],figsize=(None,None),labels=None,n
     # Calculate figure size
     fig_width,fig_height = figsize
     if fig_height == None:
-        fig_height = 2*len(tracks) + 0.5*int(len(annotation)!=0)
+        fig_height = 1.5*len(tracks) + 0.75*int(len(annotation)!=0)
     if fig_width == None:
         fig_width = 10
     
@@ -50,9 +50,7 @@ def plot_region(start,end,tracks,annotation=[],figsize=(None,None),labels=None,n
     fig,axes = plt.subplots(num_tracks,1,squeeze=False,figsize=(fig_width,fig_height),
                             subplot_kw={'xlim':(start,end),
                                         'xticks':[],
-                                        'yticks':[],
                                         'xticklabels':[],
-                                        'yticklabels':[]
                                         },
                             gridspec_kw = {'height_ratios':[2]*len(tracks)+[1]}
                             )
@@ -60,7 +58,10 @@ def plot_region(start,end,tracks,annotation=[],figsize=(None,None),labels=None,n
     
     # Include annotation arrows on bottom plot if included
     if len(annotation)>0:
-
+        # Trim plot height
+        axes[-1][0].set_ylim((-0.5,1))
+        # Remove y-ticks
+        axes[-1][0].set_yticks([])
         
         # Trim annotation dataframe
         trimmed_data = annotation[(annotation['end'] >= start) & (annotation['start'] <= end)]
@@ -76,9 +77,6 @@ def plot_region(start,end,tracks,annotation=[],figsize=(None,None),labels=None,n
             # Add arrows and labels for genes
             axes[-1][0].add_patch(mpatches.Arrow(gene_start,0,gene_end-gene_start,0,fc='lightgray',ec='k'))
             axes[-1][0].text((gene_start+gene_end)/2,0.5,row.name,ha='center')
-            # Trim plot height
-            axes[-1][0].set_ylim((-0.5,1))
-        
 
     # Plot tracks
     for i,track in enumerate(tracks):
@@ -92,15 +90,19 @@ def plot_region(start,end,tracks,annotation=[],figsize=(None,None),labels=None,n
             axes[i][0].set_ylabel(labels[i],fontsize=12)
 
     fig.tight_layout()
-    
+
     # Add x-ticks to bottom axes
     axes[-1][0].set_xticks(range(start,end,(end-start)/num_ticks))
     axes[-1][0].set_xticklabels(range(start,end,(end-start)/num_ticks))
     axes[-1][0].xaxis.set_ticks_position('bottom')
     return axes
 
-def plot_genes(gene_list,tracks,annotation=[],figsize=(None,None),labels=None,num_ticks=20):
+def plot_genes(gene_list,tracks,annotation=[],figsize=(None,None),labels=None,num_ticks=20,ranged=False):
     rows = annotation.loc[gene_list]
     start = min(rows.start)
     end = max(rows.end)
-    plot_region(start,end,tracks,annotation=annotation,figsize=figsize,labels=labels,num_ticks=num_ticks)
+    if ranged:
+        annot_rows = annotation
+    else:
+        annot_rows = rows
+    return plot_region(start,end,tracks,annotation=annot_rows,figsize=figsize,labels=labels,num_ticks=num_ticks)

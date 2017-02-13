@@ -2,15 +2,26 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import re
 
 
-def genbank2pandas(gb_file,feature=None,name_func=None):
-    table = pd.read_table(gb_file,header=None)
-    table.columns = ['genome', 'source','feature','start','end','score','strand','frame','attr']
-    table = table.sort_values(['strand','start'])
-    if feature != None:
-        table = table[table.feature.isin(feature)]
-    return table
+def genbank2pandas(gb_file,features=None,name_func=None,skiprows=None,name_pat='locus_tag=(b\d{4})'):
+    table = pd.read_table(gb_file,header=None,skiprows=skiprows)
+    table.columns = ['genome', 'source','feature','left','right','score','strand','frame','attr']
+    table = table.sort_values(['strand','left'])
+    if features != None:
+        table = table[table.feature.isin(features)]
+    if name_pat != None:
+        index = []
+        for attr in table.attr:
+            match = re.search(name_pat, attr)
+            if match:
+                index.append(match.group()[-5:])
+            else:
+                index.append(None)
+        table.index=index
+        table = table[table.index != None]
+    return table.sort_index()
 
 def gff2pandas(gff_filename,normalize=True):
     # Import data into pandas table
@@ -35,7 +46,7 @@ def gff2pandas(gff_filename,normalize=True):
     else:
         return df
 
-def plot_region(start,end,tracks,annotation=[],figsize=(None,None),labels=None,num_ticks=20):
+def plot_region(start,end,tracks,annotation=[],figsize=(None,None),labels=None,num_ticks=20,fontsize=12):
     # Get total number of tracks
     num_tracks = len(tracks) + int(len(annotation)!=0)
     
@@ -76,15 +87,15 @@ def plot_region(start,end,tracks,annotation=[],figsize=(None,None),labels=None,n
             
             # Add arrows and labels for genes
             axes[-1][0].add_patch(mpatches.Arrow(gene_start,0,gene_end-gene_start,0,fc='lightgray',ec='k'))
-            axes[-1][0].text((gene_start+gene_end)/2,0.5,row.name,ha='center')
+            axes[-1][0].text((gene_start+gene_end)/2,0.5,row.name,ha='center',fontsize=fontsize)
 
     # Plot tracks
     for i,track in enumerate(tracks):
         # Add baseline
-        axes[i][0].plot(range(start,end),[0]*(end-start),linestyle='--', color='k')
+        axes[i][0].plot(range(start,end),[0]*(end-start),linestyle='--', color='k',linewidth=1)
         # Add data
-        axes[i][0].plot(track['score_plus'][start:end],'b')
-        axes[i][0].plot(-track['score_minus'][start:end],'g')
+        axes[i][0].plot(track['score_plus'][start:end],'b',linewidth=1)
+        axes[i][0].plot(-track['score_minus'][start:end],'g',linewidth=1)
         # Add labels
         if labels != None:
             axes[i][0].set_ylabel(labels[i],fontsize=12)
@@ -92,12 +103,12 @@ def plot_region(start,end,tracks,annotation=[],figsize=(None,None),labels=None,n
     fig.tight_layout()
 
     # Add x-ticks to bottom axes
-    axes[-1][0].set_xticks(range(start,end,(end-start)/num_ticks))
-    axes[-1][0].set_xticklabels(range(start,end,(end-start)/num_ticks))
+    axes[-1][0].set_xticks(range(start,end,round((end-start)/num_ticks)))
+    axes[-1][0].set_xticklabels(range(start,end,round((end-start)/num_ticks)))
     axes[-1][0].xaxis.set_ticks_position('bottom')
     return axes
 
-def plot_genes(gene_list,tracks,annotation=[],figsize=(None,None),labels=None,num_ticks=20,ranged=False):
+def plot_genes(gene_list,tracks,annotation=[],figsize=(None,None),labels=None,num_ticks=20,ranged=False,fontsize=12):
     rows = annotation.loc[gene_list]
     start = min(rows.start)
     end = max(rows.end)
@@ -105,4 +116,4 @@ def plot_genes(gene_list,tracks,annotation=[],figsize=(None,None),labels=None,nu
         annot_rows = annotation
     else:
         annot_rows = rows
-    return plot_region(start,end,tracks,annotation=annot_rows,figsize=figsize,labels=labels,num_ticks=num_ticks)
+    return plot_region(start,end,tracks,annotation=annot_rows,figsize=figsize,labels=labels,num_ticks=num_ticks,fontsize=fontsize)
